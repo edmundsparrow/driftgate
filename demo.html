@@ -2,382 +2,432 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>I Don't Teach the Dog Ethics. I Build the Gate.</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>No Dog Ethics. Build the Fence, Manage the Gate.</title>
+<meta name="description" content="A 3D fenced-yard demo of driftGate(): three plain walls that jam with no warning, and one gate segment with a resist zone and an open/closed state — the same stateless primitive deciding both.">
+
+<meta property="og:type" content="website">
+<meta property="og:title" content="No Dog Ethics. Build the Fence, Manage the Gate.">
+<meta property="og:description" content="A 3D fenced-yard demo of driftGate() — walls that jam, a gate that resists then jams, and nothing auto-corrects.">
+<meta property="og:image" content="https://edmundsparrow.github.io/driftgate/dog-gate.jpg">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="No Dog Ethics. Build the Fence, Manage the Gate.">
+<meta name="twitter:description" content="A 3D fenced-yard demo of driftGate() — walls that jam, a gate that resists then jams, and nothing auto-corrects.">
+<meta name="twitter:image" content="https://edmundsparrow.github.io/driftgate/dog-gate.jpg">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="./driftGate.js"></script>
 <style>
-  :root{
-    --navy:#1b4d6e;
-    --navy-deep:#123249;
-    --bg:#f0f5fb;
-    --panel:#ffffff;
-    --line:#d7e3ee;
-    --ok:#2e8b57;
-    --deny:#c0392b;
-    --amber:#c78a1f;
-    --ink:#1c2b36;
-    --mono: 'DM Mono', 'SFMono-Regular', Menlo, Consolas, monospace;
-    --sans: 'DM Sans', -apple-system, 'Segoe UI', sans-serif;
-  }
-  *{box-sizing:border-box}
-  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:var(--sans);}
-  body{padding:20px 14px 60px;max-width:760px;margin:0 auto;}
+    :root {
+        --red: #ef4444; --orange: #f97316; --green: #16a34a;
+        --bg: #f2f7fa; --navy: #1b4d6e; --ink: #1e293b; --line: #cbd5e1;
+    }
+    body { margin: 0; background: var(--bg); color: var(--ink); font-family: 'DM Sans', system-ui, sans-serif; overflow: hidden; touch-action: none; }
 
-  header{margin-bottom:18px;}
-  h1{font-size:1.4rem;line-height:1.3;margin:0 0 6px;color:var(--navy-deep);}
-  .kicker{font-family:var(--mono);font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--navy);opacity:.75;margin-bottom:8px;}
-  p.lede{font-size:.92rem;line-height:1.5;color:#3a4b57;max-width:60ch;}
+    #ui-overlay { position: absolute; top: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: space-between; pointer-events: none; padding: 12px; box-sizing: border-box; }
 
-  .stage{
-    position:relative;
-    background:var(--panel);
-    border:1px solid var(--line);
-    border-radius:10px;
-    padding:10px;
-    box-shadow:0 1px 3px rgba(27,77,110,.08);
-    margin-bottom:14px;
-  }
-  svg{width:100%;height:auto;display:block;border-radius:6px;}
+    #status-card { pointer-events: auto; background: rgba(255,255,255,0.95); padding: 14px 16px; border-radius: 20px; border: 2px solid var(--line); width: 95%; max-width: 460px; text-align: center; transition: all 0.3s; box-shadow: 0 8px 24px rgba(27,77,110,0.08); }
+    #msg { font-size: 1rem; font-weight: 800; margin-bottom: 2px; text-transform: uppercase; letter-spacing: .5px; }
+    #sub { font-size: 0.7rem; color: #64748b; margin-bottom: 10px; }
 
-  .status-bar{
-    display:grid;
-    grid-template-columns:repeat(2,1fr);
-    gap:8px;
-    margin-bottom:14px;
-  }
-  @media(min-width:560px){ .status-bar{grid-template-columns:repeat(5,1fr);} }
-  .stat{
-    background:var(--panel);border:1px solid var(--line);border-radius:8px;
-    padding:8px 10px;
-  }
-  .stat .label{font-family:var(--mono);font-size:.62rem;letter-spacing:.06em;text-transform:uppercase;color:#7f93a3;}
-  .stat .value{font-family:var(--mono);font-size:.85rem;font-weight:700;margin-top:2px;}
-  .v-allow{color:var(--ok)} .v-deny{color:var(--deny)} .v-wait{color:var(--amber)} .v-neutral{color:var(--navy)} .v-resist{color:var(--amber)}
+    .grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; width: 100%; margin-bottom: 10px; }
+    .data-box { background: #eef4f8; padding: 7px; border-radius: 12px; border: 1px solid var(--line); }
+    .label { font-size: 0.58rem; color: #64748b; display: block; margin-bottom: 2px; font-weight: 600; }
+    .val { display: block; font-size: 1.05rem; font-weight: 900; color: var(--navy); }
 
-  .controls{
-    display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;
-  }
-  button{
-    font-family:var(--sans);font-size:.85rem;font-weight:600;
-    border:1px solid var(--line);background:var(--panel);color:var(--navy-deep);
-    padding:9px 14px;border-radius:8px;cursor:pointer;
-    transition:transform .08s ease, box-shadow .12s ease;
-  }
-  button:hover{box-shadow:0 2px 6px rgba(27,77,110,.15);}
-  button:active{transform:translateY(1px);}
-  button:disabled{opacity:.4;cursor:not-allowed;box-shadow:none;}
-  button.primary{background:var(--navy);color:#fff;border-color:var(--navy);}
-  button.danger{background:var(--deny);color:#fff;border-color:var(--deny);}
-  button.ghost{background:transparent;}
-  button.ask{
-    background:var(--amber);color:#2a1e05;border-color:var(--amber);
-    animation:none;
-  }
-  button.ask.pulse{ animation: askPulse 1.4s infinite; }
-  @keyframes askPulse{
-    0%{ box-shadow:0 0 0 0 rgba(199,138,31,.55);}
-    70%{ box-shadow:0 0 0 10px rgba(199,138,31,0);}
-    100%{ box-shadow:0 0 0 0 rgba(199,138,31,0);}
-  }
+    .state-ok { border-color: var(--green) !important; }
+    .state-resist { border-color: var(--orange) !important; }
+    .state-jam { border-color: var(--red) !important; }
 
-  .log{
-    background:var(--navy-deep);color:#cfe3f2;
-    font-family:var(--mono);font-size:.74rem;line-height:1.55;
-    border-radius:8px;padding:12px 14px;height:150px;overflow-y:auto;
-  }
-  .log .row{white-space:pre-wrap;}
-  .log .t{color:#7fa8c4;}
-  .log .tag-allow{color:#7bd39b;}
-  .log .tag-resist{color:#f2c568;}
-  .log .tag-deny{color:#ff8f7d;}
-  .log .tag-esc{color:#f2c568;}
+    .bottom-panel { pointer-events: auto; display: flex; flex-direction: column; align-items: center; gap: 8px; width: 100%; }
+    .dpad-outer { position: relative; width: 168px; height: 168px; }
+    .dpad { display: grid; grid-template-columns: 52px 52px 52px; grid-template-rows: 52px 52px 52px; gap: 4px; transition: transform 0.15s linear; }
+    .dpad button { border-radius: 12px; border: 1px solid var(--line); background: #fff; color: var(--navy); font-weight: 800; font-size: 1.1rem; cursor: pointer; }
+    .dpad button:active { transform: translateY(1px); }
+    .dpad button .glyph { display: inline-block; transition: transform 0.15s linear; }
+    #dpad-n { grid-column: 2; grid-row: 1; }
+    #dpad-w { grid-column: 1; grid-row: 2; }
+    #dpad-e { grid-column: 3; grid-row: 2; }
+    #dpad-s { grid-column: 2; grid-row: 3; }
+    .dpad .spacer { visibility: hidden; }
+    /* small non-interactive marker that always points toward the gate on
+       screen, independent of the dpad rotation — this replaces the old
+       fixed-navy-button approach to "which way is the gate" */
+    #gate-compass { position: absolute; top: -26px; left: 50%; transform: translateX(-50%); font-size: 0.62rem; color: var(--navy); display: flex; flex-direction: column; align-items: center; gap: 2px; pointer-events: none; }
+    #gate-compass .arrow { font-size: 1rem; transition: transform 0.15s linear; }
 
-  .lecture{margin-top:26px;padding-top:18px;border-top:1px solid var(--line);}
-  .lecture h2{font-size:1.05rem;color:var(--navy-deep);margin:0 0 8px;}
-  .lecture p{font-size:.88rem;line-height:1.6;color:#3a4b57;margin:0 0 10px;}
-  .lecture .chain{
-    font-family:var(--mono);font-size:.78rem;color:var(--navy);
-    background:#fff;border:1px solid var(--line);border-radius:8px;
-    padding:10px 12px;display:inline-block;margin:6px 0;
-  }
-  .lecture blockquote{
-    margin:14px 0;padding:10px 14px;border-left:3px solid var(--navy);
-    font-style:italic;color:var(--navy-deep);background:#fff;border-radius:0 6px 6px 0;
-  }
+    .row-controls { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+    button.wide { padding: 9px 14px; border-radius: 12px; font-weight: 700; font-size: 0.78rem; cursor: pointer; background: #fff; color: var(--navy); border: 1px solid var(--line); }
+    button.ask { background: var(--orange); color: #2a1e05; border-color: var(--orange); animation: askPulse 1.4s infinite; }
+    @keyframes askPulse { 0%{box-shadow:0 0 0 0 rgba(249,115,22,.55);} 70%{box-shadow:0 0 0 10px rgba(249,115,22,0);} 100%{box-shadow:0 0 0 0 rgba(249,115,22,0);} }
+    button.ghost { background: transparent; color: #64748b; border: 1px solid var(--line); border-radius: 12px; padding: 9px 14px; font-weight: 700; font-size: 0.78rem; cursor: pointer; }
+
+    #legend { position: absolute; top: 10px; left: 10px; pointer-events: none; font-size: 0.62rem; color: #64748b; background: rgba(255,255,255,0.85); padding: 6px 9px; border-radius: 8px; border: 1px solid var(--line); line-height: 1.5; }
+    #hint { position: absolute; top: 10px; right: 10px; pointer-events: none; font-size: 0.62rem; color: #94a3b8; }
 </style>
 </head>
 <body>
 
-<header>
-  <div class="kicker">weekend challenge — dog days edition</div>
-  <h1>I Don't Teach the Dog Ethics. I Build the Gate.</h1>
-  <p class="lede">The dog doesn't need to understand the fence. The fence doesn't need to understand the dog. Underneath, <code>driftGate()</code> is doing the classifying: it measures how far the dog's position has drifted from the gate and reports <strong>ok</strong>, <strong>resist</strong>, or <strong>jam</strong> — the system decides what happens next. Try it below.</p>
-</header>
+<div id="legend">3 walls + east wall: <b>jam only</b>, no warning<br>gate is a segment of the east wall (z −1..1): resist → jam, opens/closes</div>
+<div id="hint"></div>
 
-<div class="stage">
-  <svg id="scene" viewBox="0 0 700 340" xmlns="http://www.w3.org/2000/svg">
-    <defs>
-      <pattern id="hatch" width="10" height="10" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
-        <line x1="0" y1="0" x2="0" y2="10" stroke="#b9c8d4" stroke-width="2"/>
-      </pattern>
-    </defs>
+<div id="ui-overlay">
+    <div id="status-card">
+        <div id="msg">Within Bounds</div>
+        <div id="sub">driftGate() runs on every attempted step</div>
+        <div class="grid">
+            <div class="data-box"><span class="label">State</span><span id="val-state" class="val">OK</span></div>
+            <div class="data-box"><span class="label">Drift</span><span id="val-drift" class="val">0</span></div>
+            <div class="data-box"><span class="label">Gate</span><span id="val-gate" class="val">CLOSED</span></div>
+        </div>
+    </div>
 
-    <!-- unauthorized zone (outside fence) -->
-    <rect id="outside" x="520" y="20" width="160" height="300" fill="url(#hatch)" opacity="0.6"/>
-    <text x="600" y="40" text-anchor="middle" font-family="DM Mono, monospace" font-size="10" fill="#7f93a3">UNAUTHORIZED</text>
-
-    <!-- authorized yard -->
-    <rect id="yard" x="20" y="20" width="500" height="300" fill="#e7f2ea" stroke="#bcdcc6" stroke-width="1"/>
-    <text x="270" y="40" text-anchor="middle" font-family="DM Mono, monospace" font-size="10" fill="#5c8f6d">AUTHORIZED</text>
-
-    <!-- fence posts -->
-    <g id="fenceGroup" stroke="#8a9aa8" stroke-width="4">
-      <line x1="520" y1="20" x2="520" y2="130"/>
-      <line x1="520" y1="230" x2="520" y2="320"/>
-    </g>
-
-    <!-- gate (the transition mechanism) -->
-    <g id="gate">
-      <rect id="gateBar" x="513" y="130" width="14" height="100" fill="var(--deny)" rx="3"/>
-      <text id="gateLabel" x="520" y="184" text-anchor="middle" font-family="DM Mono, monospace" font-size="9" fill="#fff" transform="rotate(90 520 184)">CLOSED</text>
-    </g>
-
-    <!-- ground line -->
-    <line x1="20" y1="300" x2="680" y2="300" stroke="#cbd9e2" stroke-width="1"/>
-
-    <!-- ambiguity bubble -->
-    <g id="bubble" opacity="0">
-      <circle id="bubbleCircle" r="16" fill="#fff" stroke="var(--amber)" stroke-width="2"/>
-      <text id="bubbleText" text-anchor="middle" dy="6" font-family="DM Mono, monospace" font-weight="700" font-size="16" fill="#c78a1f">?</text>
-    </g>
-
-    <!-- the dog (the agent) -->
-    <g id="dog">
-      <ellipse cx="0" cy="270" rx="22" ry="13" fill="#c8863f"/>
-      <ellipse cx="17" cy="262" rx="10" ry="9" fill="#c8863f"/>
-      <path d="M22,255 l6,-8 l2,9 z" fill="#c8863f"/>
-      <path d="M8,255 l-4,-9 l-6,6 z" fill="#c8863f"/>
-      <circle cx="21" cy="260" r="1.6" fill="#2a1a0d"/>
-      <path id="tail" d="M-20,265 q-10,-10 -16,-2" stroke="#c8863f" stroke-width="5" fill="none" stroke-linecap="round"/>
-      <line x1="-10" y1="280" x2="-10" y2="292" stroke="#c8863f" stroke-width="5" stroke-linecap="round"/>
-      <line x1="6" y1="281" x2="6" y2="293" stroke="#c8863f" stroke-width="5" stroke-linecap="round"/>
-    </g>
-  </svg>
+    <div class="bottom-panel">
+        <div class="dpad-outer">
+            <div id="gate-compass"><span>gate</span><span class="arrow">🚪</span></div>
+            <div class="dpad" id="dpad">
+                <div class="spacer"></div><button id="dpad-n"><span class="glyph">▲</span></button><div class="spacer"></div>
+                <button id="dpad-w"><span class="glyph">◀</span></button><button id="dpad-e"><span class="glyph">▶</span></button><div class="spacer"></div>
+                <div class="spacer"></div><button id="dpad-s"><span class="glyph">▼</span></button><div class="spacer"></div>
+            </div>
+        </div>
+        <div class="row-controls">
+            <button id="btn-gate" class="wide">Open Gate</button>
+            <button id="btn-uncertain" class="wide">Make Uncertain</button>
+            <button id="btn-ask" class="ask" style="display:none;">Ask Human</button>
+            <button id="btn-reset" class="ghost">Reset</button>
+        </div>
+    </div>
 </div>
 
-<div class="status-bar">
-  <div class="stat"><div class="label">State</div><div class="value v-neutral" id="statState">OK</div></div>
-  <div class="stat"><div class="label">Drift</div><div class="value v-neutral" id="statDrift">−440</div></div>
-  <div class="stat"><div class="label">Gate</div><div class="value v-deny" id="statGate">CLOSED</div></div>
-  <div class="stat"><div class="label">Authority</div><div class="value v-neutral" id="statAuthority">YARD</div></div>
-  <div class="stat"><div class="label">Last transition</div><div class="value v-neutral" id="statTransition">—</div></div>
-</div>
-
-<div class="controls">
-  <button id="btnLeft">← Move</button>
-  <button id="btnRight">Move →</button>
-  <button id="btnGate" class="primary">Open Gate</button>
-  <button id="btnUncertain">Make Uncertain</button>
-  <button id="btnAsk" class="ask" style="display:none;">Ask Human</button>
-  <button id="btnReset" class="ghost">Reset</button>
-</div>
-
-<div class="log" id="log"></div>
-
-<div class="lecture">
-  <h2>What just happened</h2>
-  <p>The dog never learns a rule about gates. It just keeps attempting to move. Every attempt calls <code>driftGate(dogPosition, gatePosition, bounds)</code> — the same primitive from <a href="./driftGate.js">driftGate.js</a>, unmodified. It measures the signed distance between where the dog is and where the boundary sits, then classifies it as <strong>ok</strong>, <strong>resist</strong>, or <strong>jam</strong>.</p>
-  <div class="chain">drift = position − boundary → driftGate() → ok / resist / jam → enforcement</div>
-  <p>When the gate is closed, the bounds passed into <code>driftGate()</code> put <code>maxHard</code> right at the boundary — so the dog gets a <strong>resist</strong> warning as it nears the gate, then a hard <strong>jam</strong> at the line. Open the gate and nothing about the dog changes — no new reasoning, no new rule learned. Only the bounds object handed to <code>driftGate()</code> changes, and the exact same attempted move now reads <strong>ok</strong> well past where it used to jam. Nothing about the agent changed. The capability boundary did.</p>
-  <p>One thing in this demo is deliberately <em>not</em> part of <code>driftGate()</code>: click <strong>Make Uncertain</strong> and the system escalates instead of guessing. <code>driftGate()</code> only ever returns <code>ok</code>, <code>resist</code>, or <code>jam</code> — it has no concept of "ask a human." That's an application-layer decision built on top of the primitive, which is exactly the point: the gate primitive stays small and dumb, and the surrounding system decides what any given state should trigger.</p>
-  <blockquote>The dog doesn't need to understand the fence. The fence doesn't need to understand the dog.</blockquote>
-</div>
-
-<script src="./driftGate.js"></script>
 <script>
-(function(){
-  // The gate/boundary line, in the same coordinate space as the dog's x position.
-  const GATE_X = 480;
-  const YARD_MIN = -20;
-  const OUTSIDE_MAX = 620;
-  const STEP = 40;
+// driftGate() comes from driftGate.js, unmodified, loaded as a plain script.
+// Every wall check below is a real driftGate() call — nothing is clamped
+// separately in JS. If driftGate says 'jam', the step is refused. That is
+// the ONLY thing that stops movement, on every side, including the gate.
+const YARD = { xMin: -4, xMax: 4, zMin: -4, zMax: 4 };
+const GATE_X = YARD.xMax; // the gate lives on the east wall
+// The gate is a SEGMENT of the east wall, not the whole wall. driftGate()
+// itself has no idea what a "gate" is — it only classifies value vs
+// reference. Deciding *where along the wall* the gate check even applies
+// is an application-layer decision, made here with dogZ, before
+// driftGate() is ever called. This is the fix for the bug where the whole
+// east wall was accidentally being treated as one giant gate.
+const GATE_Z_MIN = -1;
+const GATE_Z_MAX = 1;
+const STEP = 1;
 
-  let x = 40;           // dog x position (svg units, offset applied via transform)
-  let gateOpen = false;
-  let ambiguous = false;
-  let outside = false;
+let dogX = 0, dogZ = 0;
+let gateOpen = false;
+let ambiguous = false;
 
-  const dog = document.getElementById('dog');
-  const gateBar = document.getElementById('gateBar');
-  const gateLabel = document.getElementById('gateLabel');
-  const bubble = document.getElementById('bubble');
-  const fenceGroup = document.getElementById('fenceGroup');
-  const logEl = document.getElementById('log');
+// Plain walls: minSoft === minHard (or maxSoft === maxHard) on purpose —
+// that collapses the resist zone to nothing, so the wall jams immediately
+// with no warning. Only the gate segment gets a real resist zone below.
+function checkWest(x)  { return driftGate(x, YARD.xMin, { minHard: 0, minSoft: 0, maxSoft: Infinity, maxHard: Infinity }); }
+function checkNorth(z) { return driftGate(z, YARD.zMin, { minHard: 0, minSoft: 0, maxSoft: Infinity, maxHard: Infinity }); }
+function checkSouth(z) { return driftGate(z, YARD.zMax, { minHard: -Infinity, minSoft: -Infinity, maxSoft: 0, maxHard: 0 }); }
+// The east wall OUTSIDE the gate opening — plain jam-only, same discipline
+// as west/north/south. This did not exist before: the gate check was
+// standing in for the entire east wall, including the parts with no gap.
+function checkEastWall(x) { return driftGate(x, YARD.xMax, { minHard: -Infinity, minSoft: -Infinity, maxSoft: 0, maxHard: 0 }); }
+function checkGate(x) {
+  const bounds = gateOpen
+    ? { minHard: -Infinity, minSoft: -Infinity, maxSoft: 2, maxHard: 3 }   // open: can walk out to the world edge
+    : { minHard: -Infinity, minSoft: -Infinity, maxSoft: -1, maxHard: 0 }; // closed: resist a step out, jam at the wall
+  return driftGate(x, GATE_X, bounds);
+}
 
-  const statState = document.getElementById('statState');
-  const statDrift = document.getElementById('statDrift');
-  const statGate = document.getElementById('statGate');
-  const statTransition = document.getElementById('statTransition');
-  const statAuthority = document.getElementById('statAuthority');
+let scene, camera, renderer, dogGroup, gateBar, resistStrip, animFrameId;
 
-  const btnLeft = document.getElementById('btnLeft');
-  const btnRight = document.getElementById('btnRight');
-  const btnGate = document.getElementById('btnGate');
-  const btnUncertain = document.getElementById('btnUncertain');
-  const btnAsk = document.getElementById('btnAsk');
-  const btnReset = document.getElementById('btnReset');
+function initScene() {
+    scene = new THREE.Scene();
+    camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+    camera.position.set(0, 9, 11);
+    camera.lookAt(0, 0, 0);
 
-  // The bounds handed to driftGate() change when the gate opens or closes.
-  // driftGate() itself never changes — only the boundary configuration does.
-  function currentBounds(){
-    return gateOpen
-      ? { minHard: YARD_MIN - GATE_X - 20, minSoft: -460, maxSoft: 100, maxHard: OUTSIDE_MAX - GATE_X }
-      : { minHard: YARD_MIN - GATE_X - 20, minSoft: -460, maxSoft: -40, maxHard: 0 };
-  }
+    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
 
-  function timeStr(){
-    const d = new Date();
-    return d.toTimeString().slice(0,8);
-  }
+    scene.add(new THREE.AmbientLight(0xffffff, 0.9));
+    const dir = new THREE.DirectionalLight(0xffffff, 0.6);
+    dir.position.set(6, 12, 6);
+    scene.add(dir);
 
-  function log(tag, lines){
-    const row = document.createElement('div');
-    row.className = 'row';
-    const cls = tag === 'OK' ? 'tag-allow' : tag === 'RESIST' ? 'tag-resist' : tag === 'JAM' ? 'tag-deny' : 'tag-esc';
-    row.innerHTML = `<span class="t">${timeStr()}</span>  <span class="${cls}">${tag}</span>  ${lines}`;
-    logEl.appendChild(row);
-    logEl.scrollTop = logEl.scrollHeight;
-  }
+    // outer world floor (only meaningful once the gate is open)
+    const outerFloor = new THREE.Mesh(new THREE.PlaneGeometry(20, 20), new THREE.MeshPhongMaterial({ color: 0xe2e8f0 }));
+    outerFloor.rotation.x = -Math.PI / 2;
+    outerFloor.position.y = -0.02;
+    scene.add(outerFloor);
 
-  function render(){
-    dog.setAttribute('transform', `translate(${x},0)`);
-    bubble.setAttribute('transform', `translate(${x+2},235)`);
+    // yard floor
+    const yardW = YARD.xMax - YARD.xMin, yardD = YARD.zMax - YARD.zMin;
+    const yardFloor = new THREE.Mesh(new THREE.PlaneGeometry(yardW, yardD), new THREE.MeshPhongMaterial({ color: 0xe7f2ea }));
+    yardFloor.rotation.x = -Math.PI / 2;
+    scene.add(yardFloor);
 
-    gateBar.setAttribute('fill', gateOpen ? '#2e8b57' : '#c0392b');
-    gateLabel.textContent = gateOpen ? 'OPEN' : 'CLOSED';
-    statGate.textContent = gateOpen ? 'OPEN' : 'CLOSED';
-    statGate.className = 'value ' + (gateOpen ? 'v-allow' : 'v-deny');
+    // resist strip near the gate — a visible band inside the yard, purely a
+    // readout. Sized to the actual gate opening (GATE_Z_MIN..GATE_Z_MAX)
+    // instead of spanning the full east wall, so it no longer overstates
+    // where the resist zone actually applies.
+    resistStrip = new THREE.Mesh(new THREE.PlaneGeometry(1, GATE_Z_MAX - GATE_Z_MIN), new THREE.MeshPhongMaterial({ color: 0xf97316, transparent: true, opacity: 0.18 }));
+    resistStrip.rotation.x = -Math.PI / 2;
+    resistStrip.position.set(YARD.xMax - 0.5, 0.005, (GATE_Z_MIN + GATE_Z_MAX) / 2);
+    scene.add(resistStrip);
 
-    btnGate.textContent = gateOpen ? 'Close Gate' : 'Open Gate';
-    btnGate.className = gateOpen ? 'danger' : 'primary';
-
-    statAuthority.textContent = outside ? 'EXTENDED' : 'YARD';
-
-    const result = driftGate(x, GATE_X, currentBounds());
-    statDrift.textContent = (result.drift > 0 ? '+' : '') + result.drift;
-    if(!ambiguous){
-      statState.textContent = result.state.toUpperCase() + (result.side ? ' / ' + result.side.toUpperCase() : '');
-      statState.className = 'value ' + (result.state === 'ok' ? 'v-allow' : result.state === 'resist' ? 'v-resist' : 'v-deny');
+    // fence: posts + rail along west, north, south — plain walls, no gap
+    function fenceLine(fromX, fromZ, toX, toZ) {
+        const steps = Math.round(Math.max(Math.abs(toX - fromX), Math.abs(toZ - fromZ)));
+        for (let i = 0; i <= steps; i++) {
+            const t = steps === 0 ? 0 : i / steps;
+            const x = fromX + (toX - fromX) * t;
+            const z = fromZ + (toZ - fromZ) * t;
+            const post = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.9, 8), new THREE.MeshPhongMaterial({ color: 0x8a9aa8 }));
+            post.position.set(x, 0.45, z);
+            scene.add(post);
+        }
+        const rail = new THREE.Mesh(new THREE.BoxGeometry(Math.max(Math.abs(toX - fromX), 0.05), 0.06, Math.max(Math.abs(toZ - fromZ), 0.05)), new THREE.MeshPhongMaterial({ color: 0xb0b8c4 }));
+        rail.position.set((fromX + toX) / 2, 0.65, (fromZ + toZ) / 2);
+        scene.add(rail);
     }
+    fenceLine(YARD.xMin, YARD.zMin, YARD.xMin, YARD.zMax); // west wall
+    fenceLine(YARD.xMin, YARD.zMin, YARD.xMax, YARD.zMin); // north wall
+    fenceLine(YARD.xMin, YARD.zMax, YARD.xMax, YARD.zMax); // south wall
+    // east wall, split either side of the gate opening — the visual gap
+    // (GATE_Z_MIN..GATE_Z_MAX) now matches the logical gate interval used
+    // by attemptMove(), instead of the two only agreeing by coincidence.
+    fenceLine(YARD.xMax, YARD.zMin, YARD.xMax, GATE_Z_MIN);
+    fenceLine(YARD.xMax, GATE_Z_MAX, YARD.xMax, YARD.zMax);
 
-    if(ambiguous){
-      bubble.setAttribute('opacity','1');
-      statState.textContent = 'AMBIGUOUS';
-      statState.className = 'value v-wait';
-      btnAsk.style.display = 'inline-block';
-      btnAsk.classList.add('pulse');
+    // the gate itself — a boom-style bar that lifts clear when open.
+    // Its position/color is a pure readout of gateOpen; it never decides
+    // anything on its own, same discipline as the spring in the value demo.
+    gateBar = new THREE.Mesh(new THREE.BoxGeometry(0.12, 1.3, GATE_Z_MAX - GATE_Z_MIN), new THREE.MeshPhongMaterial({ color: 0xc0392b }));
+    gateBar.position.set(YARD.xMax, 0.65, (GATE_Z_MIN + GATE_Z_MAX) / 2);
+    scene.add(gateBar);
+
+    // the dog — simple shapes, matches the flat SVG dog's palette
+    dogGroup = new THREE.Group();
+    const tan = new THREE.MeshPhongMaterial({ color: 0xc8863f });
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.4, 0.4), tan); body.position.y = 0.35; dogGroup.add(body);
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.24, 12, 12), tan); head.position.set(0.55, 0.45, 0); dogGroup.add(head);
+    const earGeo = new THREE.ConeGeometry(0.08, 0.2, 8);
+    const earL = new THREE.Mesh(earGeo, tan); earL.position.set(0.5, 0.68, 0.14); dogGroup.add(earL);
+    const earR = new THREE.Mesh(earGeo, tan); earR.position.set(0.5, 0.68, -0.14); dogGroup.add(earR);
+    const tail = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.4, 8), tan);
+    tail.position.set(-0.55, 0.5, 0); tail.rotation.z = Math.PI / 3; dogGroup.add(tail);
+    [[-0.3, 0.16, 0.16], [-0.3, 0.16, -0.16], [0.3, 0.16, 0.16], [0.3, 0.16, -0.16]].forEach(([x, y, z]) => {
+        const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.32, 8), tan);
+        leg.position.set(x, y, z); dogGroup.add(leg);
+    });
+    scene.add(dogGroup);
+
+    animate();
+    render3D();
+}
+
+function worldX(x) { return x; }
+function worldZ(z) { return z; }
+
+function render3D() {
+    dogGroup.position.set(worldX(dogX), 0, worldZ(dogZ));
+
+    gateBar.material.color.setHex(gateOpen ? 0x16a34a : 0xc0392b);
+    gateBar.position.y = gateOpen ? 3.2 : 0.65; // lifted clear when open
+
+    // resist strip only means something while the gate is closed —
+    // once open, the graduated zone moves outward past the fence line
+    resistStrip.visible = !gateOpen;
+}
+
+function animate() {
+    animFrameId = requestAnimationFrame(animate);
+    renderer.render(scene, camera);
+}
+
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// Drag-to-rotate is touch-only. We gate on e.pointerType rather than
+// sniffing the device up front, so a touch-capable laptop still works with
+// a mouse exactly like a plain desktop (no rotate), and still rotates the
+// instant an actual touch/pen drag happens. A mouse-only desktop never
+// rotates the camera at all, so the fixed-position buttons there are never
+// wrong in the first place — nothing else needs to change for that case.
+let dragging = false, lastX = 0, orbit = 0.0;
+const dpadEl = document.getElementById('dpad');
+const glyphs = document.querySelectorAll('.dpad .glyph');
+const compassArrow = document.querySelector('#gate-compass .arrow');
+
+function onDown(x, pointerType) { if (pointerType !== 'touch') return; dragging = true; lastX = x; }
+function onMove(x, pointerType) {
+    if (!dragging || pointerType !== 'touch') return;
+    orbit += (x - lastX) * 0.006;
+    lastX = x;
+    const r = 14.5;
+    camera.position.set(Math.sin(orbit) * r, 9, Math.cos(orbit) * r);
+    camera.lookAt(0, 0, 0);
+    syncCompassAndPad();
+}
+function onUp() { dragging = false; }
+
+// Rotates the on-screen dpad (and the gate compass) to match the camera's
+// current orbit, so whichever physical button currently moves the dog
+// toward the gate is also the one sitting in that direction on screen.
+// The dog's actual movement stays in fixed world axes (N/S/E/W) the whole
+// time — only the visual control layout follows the camera, not the logic.
+// NOTE: verify the sign on-device — if the pad appears to rotate opposite
+// to the camera drag, flip the sign on `orbitDeg` below.
+function syncCompassAndPad() {
+    const orbitDeg = orbit * 180 / Math.PI;
+    dpadEl.style.transform = `rotate(${orbitDeg}deg)`;
+    glyphs.forEach(g => g.style.transform = `rotate(${-orbitDeg}deg)`);
+    // the gate sits due world-east (+X); its screen bearing shifts by the
+    // same angle as the camera orbit, same rotation the compass follows
+    compassArrow.style.transform = `rotate(${orbitDeg}deg)`;
+}
+
+window.addEventListener('pointerdown', e => onDown(e.clientX, e.pointerType));
+window.addEventListener('pointermove', e => onMove(e.clientX, e.pointerType));
+window.addEventListener('pointerup', onUp);
+
+// Hint text differs because the interaction differs — no point telling a
+// mouse user to "drag to look around" when dragging does nothing for them.
+const isTouchCapable = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+document.getElementById('hint').textContent = isTouchCapable
+    ? 'drag to look around — buttons follow'
+    : '';
+
+const msg = document.getElementById('msg');
+const sub = document.getElementById('sub');
+const card = document.getElementById('status-card');
+const valState = document.getElementById('val-state');
+const valDrift = document.getElementById('val-drift');
+const valGate = document.getElementById('val-gate');
+const btnGate = document.getElementById('btn-gate');
+const btnUncertain = document.getElementById('btn-uncertain');
+const btnAsk = document.getElementById('btn-ask');
+
+function bump(direction) {
+    const kick = { n: [0, 0, 0.15], s: [0, 0, -0.15], e: [-0.15, 0, 0], w: [0.15, 0, 0] }[direction];
+    dogGroup.position.x += kick[0]; dogGroup.position.z += kick[2];
+    setTimeout(() => render3D(), 90);
+}
+
+function setCard(state, side, wallName) {
+    card.className = '';
+    if (state === 'ok') {
+        card.classList.add('state-ok'); msg.style.color = 'var(--green)';
+        msg.innerText = 'Within Bounds'; sub.innerText = wallName ? `clear of ${wallName}` : 'driftGate() runs on every attempted step';
+    } else if (state === 'resist') {
+        card.classList.add('state-resist'); msg.style.color = 'var(--orange)';
+        msg.innerText = 'Resisting'; sub.innerText = `nearing ${wallName} — still permitted`;
     } else {
-      bubble.setAttribute('opacity','0');
-      btnAsk.style.display = 'none';
-      btnAsk.classList.remove('pulse');
+        card.classList.add('state-jam'); msg.style.color = 'var(--red)';
+        msg.innerText = 'Jammed'; sub.innerText = `${wallName} refuses — step not taken`;
     }
+}
 
-    btnLeft.disabled = ambiguous;
-    btnRight.disabled = ambiguous;
-  }
+function attemptMove(direction) {
+    if (ambiguous) return;
+    let candidateX = dogX, candidateZ = dogZ, axis, wallName;
 
-  function bump(){
-    fenceGroup.setAttribute('stroke', '#c0392b');
-    fenceGroup.setAttribute('stroke-width', '6');
-    setTimeout(()=>{
-      fenceGroup.setAttribute('stroke', '#8a9aa8');
-      fenceGroup.setAttribute('stroke-width', '4');
-    }, 220);
+    if (direction === 'e' || direction === 'w') {
+        axis = 'x';
+        candidateX = dogX + (direction === 'e' ? STEP : -STEP);
 
-    dog.style.transition = 'transform .08s ease';
-    dog.setAttribute('transform', `translate(${x-8},0)`);
-    setTimeout(()=>{
-      dog.setAttribute('transform', `translate(${x},0)`);
-    }, 90);
-  }
+        // The gate is a SEGMENT of the east wall, not the whole wall. Whether
+        // the dog is even standing in front of the opening is decided here,
+        // with dogZ, before driftGate() is called at all. driftGate() itself
+        // never sees "gate" or "wall" — it only ever sees two numbers and a
+        // bounds object. This is the fix: previously checkGate(candidateX)
+        // ran for every east-facing move regardless of dogZ, which made the
+        // gate swallow the entire east wall.
+        const inGateOpening = dogZ >= GATE_Z_MIN && dogZ <= GATE_Z_MAX;
+        const westResult = checkWest(candidateX);
+        const eastResult = inGateOpening ? checkGate(candidateX) : checkEastWall(candidateX);
+        const eastLabel = inGateOpening ? 'the gate' : 'the east wall';
 
-  function attemptMove(dir){
-    if(ambiguous) return;
-
-    const target = x + dir*STEP;
-    const clampedTarget = Math.max(YARD_MIN, Math.min(OUTSIDE_MAX, target));
-    const result = driftGate(clampedTarget, GATE_X, currentBounds());
-
-    if(result.state === 'jam'){
-      bump();
-      log('JAM', `AGENT → MOVE(${dir>0?'right':'left'})  |  driftGate(${clampedTarget}, ${GATE_X}, bounds) → { drift:${result.drift}, state:'jam', side:'${result.side}' }  |  reason: boundary refuses at current authority`);
-      statTransition.textContent = 'JAM';
-      statTransition.className = 'value v-deny';
-      render();
-      return;
-    }
-
-    x = clampedTarget;
-    outside = x > GATE_X;
-
-    if(result.state === 'resist'){
-      log('RESIST', `AGENT → MOVE(${dir>0?'right':'left'})  |  driftGate(${x}, ${GATE_X}, bounds) → { drift:${result.drift}, state:'resist', side:'${result.side}' }  |  reason: nearing boundary, still permitted`);
-      statTransition.textContent = 'RESIST';
-      statTransition.className = 'value v-resist';
+        if (westResult.state === 'jam') { var result = westResult; wallName = 'the west wall'; }
+        else if (eastResult.state === 'jam') { var result = eastResult; wallName = eastLabel; }
+        else if (eastResult.state === 'resist') { var result = eastResult; wallName = eastLabel; }
+        else if (westResult.state === 'resist') { var result = westResult; wallName = 'the west wall'; }
+        else { var result = eastResult; wallName = null; }
     } else {
-      log('OK', `AGENT → MOVE(${dir>0?'right':'left'})  |  driftGate(${x}, ${GATE_X}, bounds) → { drift:${result.drift}, state:'ok' }  |  reason: within bounds`);
-      statTransition.textContent = 'OK';
-      statTransition.className = 'value v-allow';
+        axis = 'z';
+        candidateZ = dogZ + (direction === 's' ? STEP : -STEP);
+        const northResult = checkNorth(candidateZ);
+        const southResult = checkSouth(candidateZ);
+        if (northResult.state === 'jam') { var result = northResult; wallName = 'the north wall'; }
+        else if (southResult.state === 'jam') { var result = southResult; wallName = 'the south wall'; }
+        else if (northResult.state === 'resist') { var result = northResult; wallName = 'the north wall'; }
+        else if (southResult.state === 'resist') { var result = southResult; wallName = 'the south wall'; }
+        else { var result = northResult; wallName = null; }
     }
 
-    render();
-  }
+    valDrift.textContent = (result.drift > 0 ? '+' : '') + result.drift.toFixed(1);
 
-  btnLeft.addEventListener('click', ()=>attemptMove(-1));
-  btnRight.addEventListener('click', ()=>attemptMove(1));
+    if (result.state === 'jam') {
+        bump(direction);
+        valState.textContent = 'JAM';
+        setCard('jam', result.side, wallName);
+        return; // position NOT updated — driftGate is the only thing that stopped it
+    }
 
-  btnGate.addEventListener('click', ()=>{
+    dogX = candidateX; dogZ = candidateZ;
+    valState.textContent = result.state.toUpperCase();
+    setCard(result.state, result.side, wallName || (axis === 'x' ? 'the gate' : 'the walls'));
+    render3D();
+}
+
+btnGate.addEventListener('click', () => {
     gateOpen = !gateOpen;
-    log(gateOpen ? 'OK' : 'JAM', `SYSTEM → GATE  |  bounds changed, maxHard now ${currentBounds().maxHard}  |  reason: human-authorized change to boundary — driftGate() itself did not change`);
-    statTransition.textContent = gateOpen ? 'GATE OPENED' : 'GATE CLOSED';
-    statTransition.className = 'value ' + (gateOpen ? 'v-allow' : 'v-deny');
-    render();
-  });
+    valGate.textContent = gateOpen ? 'OPEN' : 'CLOSED';
+    btnGate.textContent = gateOpen ? 'Close Gate' : 'Open Gate';
+    render3D();
+});
 
-  btnUncertain.addEventListener('click', ()=>{
-    if(ambiguous) return;
+btnUncertain.addEventListener('click', () => {
+    if (ambiguous) return;
     ambiguous = true;
-    log('ESCALATE', `AGENT → ENCOUNTERED UNMAPPED STATE  |  driftGate() has no vocabulary for this  |  TRANSITION → ESCALATE  |  reason: application layer, not the primitive, decides to ask a human`);
-    statTransition.textContent = 'ESCALATE';
-    statTransition.className = 'value v-wait';
-    render();
-  });
+    card.className = 'state-resist';
+    msg.style.color = 'var(--orange)';
+    msg.innerText = 'Ambiguous';
+    sub.innerText = 'driftGate() has no vocabulary for this — escalating instead of guessing';
+    btnAsk.style.display = 'inline-block';
+});
 
-  btnAsk.addEventListener('click', ()=>{
+btnAsk.addEventListener('click', () => {
     ambiguous = false;
-    log('OK', `HUMAN → INPUT RECEIVED  |  TRANSITION → RESUME  |  reason: authority clarified by human`);
-    statTransition.textContent = 'RESUMED';
-    statTransition.className = 'value v-allow';
-    render();
-  });
+    btnAsk.style.display = 'none';
+    setCard('ok', null, null);
+});
 
-  btnReset.addEventListener('click', ()=>{
-    x = 40; gateOpen = false; ambiguous = false; outside = false;
-    logEl.innerHTML = '';
-    log('OK', `SYSTEM → RESET  |  TRANSITION → INITIAL STATE`);
-    statTransition.textContent = '—';
-    statTransition.className = 'value v-neutral';
-    render();
-  });
+document.getElementById('btn-reset').addEventListener('click', () => {
+    dogX = 0; dogZ = 0; gateOpen = false; ambiguous = false;
+    valGate.textContent = 'CLOSED'; btnGate.textContent = 'Open Gate'; btnAsk.style.display = 'none';
+    setCard('ok', null, null);
+    render3D();
+});
 
-  document.addEventListener('keydown', (e)=>{
-    if(e.key === 'ArrowLeft') attemptMove(-1);
-    if(e.key === 'ArrowRight') attemptMove(1);
-  });
+document.getElementById('dpad-n').addEventListener('click', () => attemptMove('n'));
+document.getElementById('dpad-s').addEventListener('click', () => attemptMove('s'));
+document.getElementById('dpad-e').addEventListener('click', () => attemptMove('e'));
+document.getElementById('dpad-w').addEventListener('click', () => attemptMove('w'));
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowUp') attemptMove('n');
+    if (e.key === 'ArrowDown') attemptMove('s');
+    if (e.key === 'ArrowRight') attemptMove('e');
+    if (e.key === 'ArrowLeft') attemptMove('w');
+});
 
-  log('OK', `SYSTEM → BOOT  |  driftGate(${x}, ${GATE_X}, bounds) → { state:'ok' }  |  GATE → CLOSED`);
-  render();
-})();
+initScene();
+render3D();
 </script>
-
 </body>
 </html>
