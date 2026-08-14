@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>DriftSpring3D | Weight + Datum</title>
+<meta name="description" content="DriftSpring3D — a 3D demo of driftGate(), a stateless primitive that classifies signed drift from a moving reference into ok, resist, or jam. Adjust value and reference independently and watch the spring read out the state.">
+
+<meta property="og:type" content="website">
+<meta property="og:title" content="DriftSpring3D | driftGate() demo">
+<meta property="og:description" content="A 3D demo of driftGate(), a stateless primitive that classifies signed drift from a moving reference into ok, resist, or jam.">
+<meta property="og:image" content="https://edmundsparrow.github.io/driftgate/preview.png">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="DriftSpring3D | driftGate() demo">
+<meta name="twitter:description" content="A 3D demo of driftGate(), a stateless primitive that classifies signed drift from a moving reference into ok, resist, or jam.">
+<meta name="twitter:image" content="https://edmundsparrow.github.io/driftgate/preview.png">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+    :root {
+        --red: #ef4444; --orange: #f97316; --green: #16a34a;
+        --bg: #f2f7fa; --navy: #1b4d6e; --ink: #1e293b; --line: #cbd5e1;
+    }
+    body { margin: 0; background: var(--bg); color: var(--ink); font-family: 'DM Sans', system-ui, sans-serif; overflow: hidden; touch-action: none; }
+
+    #ui-overlay { position: absolute; top: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; pointer-events: none; padding: 15px; box-sizing: border-box; }
+    #status-card { pointer-events: auto; background: rgba(255, 255, 255, 0.95); padding: 18px; border-radius: 24px; border: 2px solid var(--line); width: 95%; max-width: 440px; text-align: center; margin-top: 10px; transition: all 0.4s; box-shadow: 0 8px 24px rgba(27,77,110,0.08); }
+
+    #msg { font-size: 1.05rem; font-weight: 800; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 1px; }
+    #sub { font-size: 0.72rem; color: #64748b; margin-bottom: 12px; }
+
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; margin-bottom: 12px; }
+    .data-box { background: #eef4f8; padding: 9px; border-radius: 16px; border: 1px solid var(--line); }
+    .label { font-size: 0.62rem; color: #64748b; display: block; margin-bottom: 3px; font-weight: 600; letter-spacing: 0.3px; }
+    .val { display: block; font-size: 1.25rem; font-weight: 900; color: var(--navy); }
+
+    .state-ok { border-color: var(--green) !important; }
+    .state-resist { border-color: var(--orange) !important; }
+    .state-jam { border-color: var(--red) !important; }
+
+    .controls { pointer-events: auto; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+    .controls .row { display: flex; gap: 8px; justify-content: center; width: 100%; margin-bottom: 6px; }
+    .controls button { padding: 10px 14px; border-radius: 14px; font-weight: 800; font-size: 0.78rem; cursor: pointer; background: #ffffff; color: var(--navy); border: 1px solid var(--line); min-width: 84px; }
+    .controls button.primary { background: var(--navy); color: #ffffff; border-color: var(--navy); }
+    .controls button.ghost { background: transparent; color: #64748b; }
+    #hint { position: absolute; bottom: 8px; width: 100%; text-align: center; font-size: 0.68rem; color: #94a3b8; pointer-events: none; }
+</style>
+</head>
+<body>
+
+<div id="ui-overlay">
+    <div id="status-card">
+        <div id="msg">Within Tolerance</div>
+        <div id="sub">drift = value − reference</div>
+        <div class="grid">
+            <div class="data-box"><span class="label">Drift</span><span id="val-drift" class="val">0</span></div>
+            <div class="data-box"><span class="label">State</span><span id="val-state" class="val">OK</span></div>
+            <div class="data-box"><span class="label">Value</span><span id="val-value" class="val">100</span></div>
+            <div class="data-box"><span class="label">Reference</span><span id="val-ref" class="val">100</span></div>
+        </div>
+        <div class="controls">
+            <div class="row">
+                <button id="btn-val-down">Value −</button>
+                <button id="btn-val-up" class="primary">Value +</button>
+            </div>
+            <div class="row">
+                <button id="btn-ref-down">Reference −</button>
+                <button id="btn-ref-up" class="primary">Reference +</button>
+            </div>
+            <div class="row">
+                <button id="btn-reset" class="ghost">Reset</button>
+            </div>
+        </div>
+    </div>
+</div>
+<div id="hint">drag the scene to look around</div>
+
+<script src="./driftGate.js"></script>
+<script>
+// driftGate() itself comes from driftGate.js, loaded as a plain classic
+// script so the primitive stays a separate, inspectable file — not inlined
+// here. capacityGate(load, bounds) === driftGate(load, 0, bounds) — this
+// demo is the case capacityGate can't show: a reference that isn't fixed at
+// zero.
+
+const bounds = { minHard: -40, minSoft: -15, maxSoft: 15, maxHard: 40 };
+const VMAX = 200, STEP = 10;
+let value = 100, reference = 100;
+
+let scene, camera, renderer, rail, weight, refCollar, refFlag, animFrameId;
+let jamUnder, resistUnder, okZone, resistOver, jamOver, springRings = [];
+const Y0 = 1.0, Y1 = 9.0; // scene-space bottom/top of the rail
+const RAIL_R = 0.05;
+const RINGS = 12;
+
+function toY(v) { return Y0 + (Math.max(0, Math.min(VMAX, v)) / VMAX) * (Y1 - Y0); }
+function clampY(y) { return Math.max(Y0, Math.min(Y1, y)); }
+
+function stateHex(state) {
+    return state === 'ok' ? 0x2ecc71 : state === 'resist' ? 0xf97316 : 0xef4444;
+}
+
+function init3D() {
+    scene = new THREE.Scene();
+    camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+    camera.position.set(6, 5, 12);
+    camera.lookAt(0, 5, 0);
+
+    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    scene.add(new THREE.AmbientLight(0xffffff, 0.85));
+    const dir = new THREE.DirectionalLight(0xffffff, 0.7);
+    dir.position.set(5, 10, 8);
+    scene.add(dir);
+
+    // base stand
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.3, 0.3, 24), new THREE.MeshPhongMaterial({ color: 0x94a3b8 }));
+    base.position.set(0, 0.15, 0);
+    scene.add(base);
+
+    // the rail — the value axis itself, a plain neutral pole
+    rail = new THREE.Mesh(new THREE.CylinderGeometry(RAIL_R, RAIL_R, (Y1 - Y0) + 1.2, 12), new THREE.MeshPhongMaterial({ color: 0xcbd5e1 }));
+    rail.position.set(0, (Y0 + Y1) / 2, 0);
+    scene.add(rail);
+
+    // tick rings every 50 units along the value axis, purely for scale reference
+    [0, 50, 100, 150, 200].forEach(v => {
+        const tick = new THREE.Mesh(new THREE.TorusGeometry(0.13, 0.012, 6, 16), new THREE.MeshPhongMaterial({ color: 0xb0b8c4 }));
+        tick.rotation.x = Math.PI / 2;
+        tick.position.set(0, toY(v), 0);
+        scene.add(tick);
+    });
+
+    // the five zone bands — translucent tubes around the rail, positioned
+    // relative to the reference each frame. This is what makes the "goalposts
+    // move" when the reference moves, instead of the value moving toward a
+    // fixed line the way capacityGate's tank did.
+    function makeBand(color) {
+        const m = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 1, 24, 1, true), new THREE.MeshPhongMaterial({ color, transparent: true, opacity: 0.22, side: THREE.DoubleSide }));
+        scene.add(m);
+        return m;
+    }
+    jamUnder = makeBand(0xef4444);
+    resistUnder = makeBand(0xf97316);
+    okZone = makeBand(0x2ecc71);
+    resistOver = makeBand(0xf97316);
+    jamOver = makeBand(0xef4444);
+
+    // reference marker — a collar on the rail plus a small flag, neutral color.
+    // It carries no state color: it's the datum, not the reading.
+    refCollar = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.1, 20), new THREE.MeshPhongMaterial({ color: 0x1b4d6e }));
+    scene.add(refCollar);
+    refFlag = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.28, 0.03), new THREE.MeshPhongMaterial({ color: 0x1b4d6e, side: THREE.DoubleSide }));
+    scene.add(refFlag);
+
+    // spring — stacked coil rings between reference and value. Its stretch or
+    // compression is a read-out of |drift|, nothing more. It never pulls the
+    // weight back toward the reference on its own — no auto-resolve.
+    for (let i = 0; i < RINGS; i++) {
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.02, 8, 16), new THREE.MeshPhongMaterial({ color: 0x94a3b8 }));
+        ring.rotation.x = Math.PI / 2;
+        scene.add(ring);
+        springRings.push(ring);
+    }
+
+    // the weight — value itself, hanging on the rail. Colored by current state.
+    weight = new THREE.Mesh(new THREE.SphereGeometry(0.32, 20, 20), new THREE.MeshPhongMaterial({ color: 0x2ecc71 }));
+    scene.add(weight);
+
+    animate();
+    render3D();
+}
+
+function positionBand(mesh, fromV, toV) {
+    const y0 = clampY(toY(fromV)), y1 = clampY(toY(toV));
+    const lo = Math.min(y0, y1), hi = Math.max(y0, y1);
+    const h = Math.max(hi - lo, 0.001);
+    mesh.scale.y = h;
+    mesh.position.set(0, lo + h / 2, 0);
+    mesh.visible = hi > lo + 0.0005 || (fromV === -Infinity || toV === Infinity);
+}
+
+function render3D() {
+    const result = driftGate(value, reference, bounds);
+
+    const valY = toY(value);
+    const refY = toY(reference);
+
+    // zone bands, all positioned relative to the moving reference
+    positionBand(jamUnder, -Infinity, reference + bounds.minHard);
+    positionBand(resistUnder, reference + bounds.minHard, reference + bounds.minSoft);
+    positionBand(okZone, reference + bounds.minSoft, reference + bounds.maxSoft);
+    positionBand(resistOver, reference + bounds.maxSoft, reference + bounds.maxHard);
+    positionBand(jamOver, reference + bounds.maxHard, Infinity);
+    // clamp the open-ended bands to the visible rail extent
+    jamUnder.scale.y = Math.max(clampY(toY(reference + bounds.minHard)) - Y0, 0.001);
+    jamUnder.position.set(0, Y0 + jamUnder.scale.y / 2, 0);
+    jamOver.scale.y = Math.max(Y1 - clampY(toY(reference + bounds.maxHard)), 0.001);
+    jamOver.position.set(0, Y1 - jamOver.scale.y / 2, 0);
+
+    // reference marker
+    refCollar.position.set(0, refY, 0);
+    refFlag.position.set(0.55, refY, 0);
+
+    // weight
+    weight.position.set(0, valY, 0);
+    weight.material.color.setHex(stateHex(result.state));
+
+    // spring rings — stack between reference and weight, tinted by state
+    const top = Math.max(refY, valY), bot = Math.min(refY, valY);
+    const span = top - bot;
+    const spacing = RINGS > 1 ? span / (RINGS - 1) : 0;
+    springRings.forEach((ring, i) => {
+        ring.position.set(0, bot + spacing * i, 0);
+        ring.material.color.setHex(stateHex(result.state));
+    });
+
+    return result;
+}
+
+function animate() {
+    animFrameId = requestAnimationFrame(animate);
+    renderer.render(scene, camera);
+}
+
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// drag-to-rotate — viewing only, same pattern as lever.html. Rotation is
+// around the fixed rail; it never changes value or reference.
+let dragging = false, lastX = 0, lastY = 0, orbit = 0.45;
+function onDown(x, y) { dragging = true; lastX = x; lastY = y; }
+function onMove(x, y) {
+    if (!dragging) return;
+    orbit += (x - lastX) * 0.006;
+    lastX = x; lastY = y;
+    const radius = 13.5;
+    camera.position.set(Math.sin(orbit) * radius, 5, Math.cos(orbit) * radius);
+    camera.lookAt(0, 5, 0);
+}
+function onUp() { dragging = false; }
+(function attach() {
+    window.addEventListener('pointerdown', e => onDown(e.clientX, e.clientY));
+    window.addEventListener('pointermove', e => onMove(e.clientX, e.clientY));
+    window.addEventListener('pointerup', onUp);
+})();
+
+const msg = document.getElementById('msg');
+const sub = document.getElementById('sub');
+const card = document.getElementById('status-card');
+const valDrift = document.getElementById('val-drift');
+const valState = document.getElementById('val-state');
+const valValue = document.getElementById('val-value');
+const valRef = document.getElementById('val-ref');
+
+function refreshUI() {
+    const result = render3D();
+
+    valValue.textContent = value;
+    valRef.textContent = reference;
+    valDrift.textContent = (result.drift > 0 ? '+' : '') + result.drift;
+    valState.textContent = result.state.toUpperCase() + (result.side ? ' / ' + result.side.toUpperCase() : '');
+
+    card.className = '';
+    if (result.state === 'ok') {
+        card.classList.add('state-ok');
+        msg.style.color = 'var(--green)';
+        msg.innerText = 'Within Tolerance';
+        sub.innerText = 'drift = value − reference';
+    } else if (result.state === 'resist' && result.side === 'under') {
+        card.classList.add('state-resist');
+        msg.style.color = 'var(--orange)';
+        msg.innerText = 'Drifting Below Reference';
+        sub.innerText = 'value is falling behind — watch it';
+    } else if (result.state === 'resist' && result.side === 'over') {
+        card.classList.add('state-resist');
+        msg.style.color = 'var(--orange)';
+        msg.innerText = 'Drifting Above Reference';
+        sub.innerText = 'value is pulling ahead — watch it';
+    } else if (result.state === 'jam' && result.side === 'under') {
+        card.classList.add('state-jam');
+        msg.style.color = 'var(--red)';
+        msg.innerText = 'Drift Limit — Under';
+        sub.innerText = 'nothing auto-corrects this; the gate only reports it';
+    } else {
+        card.classList.add('state-jam');
+        msg.style.color = 'var(--red)';
+        msg.innerText = 'Drift Limit — Over';
+        sub.innerText = 'nothing auto-corrects this; the gate only reports it';
+    }
+}
+
+document.getElementById('btn-val-up').addEventListener('click', () => { value = Math.min(VMAX, value + STEP); refreshUI(); });
+document.getElementById('btn-val-down').addEventListener('click', () => { value = Math.max(0, value - STEP); refreshUI(); });
+document.getElementById('btn-ref-up').addEventListener('click', () => { reference = Math.min(VMAX, reference + STEP); refreshUI(); });
+document.getElementById('btn-ref-down').addEventListener('click', () => { reference = Math.max(0, reference - STEP); refreshUI(); });
+document.getElementById('btn-reset').addEventListener('click', () => { value = 100; reference = 100; refreshUI(); });
+
+init3D();
+refreshUI();
+</script>
+</body>
+</html>
