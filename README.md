@@ -21,11 +21,14 @@ whether that drift is good or bad.
 
 ## Demo
 
-**`demo.html`** — a dog, a yard, a fence, and a gate. The dog keeps attempting
-to move; `driftGate(dogPosition, gatePosition, bounds)` classifies each
-attempt as `ok` / `resist` / `jam` and the demo enforces exactly that.
-Opening or closing the gate only changes the bounds object passed into
-`driftGate()` — the primitive itself never changes.
+**`demo.html`** — a 3D fenced yard: a dog, three plain walls, and one gate
+wall. The dog attempts to move in any of four directions; every attempt
+calls `driftGate()` against whichever boundary it's actually crossing —
+`ok` / `resist` / `jam` — and the demo enforces exactly that. The three
+plain walls have no resist zone at all (straight `ok` → `jam`, no
+warning); only the gate wall gets a graduated `resist` zone and an
+open/closed state. Opening or closing the gate only changes the bounds
+object passed into `driftGate()` — the primitive itself never changes.
 
 **`index.html`** (DriftSpring3D) — the original 3D value/reference demo:
 value and reference as two points on a rail, with a spring between them
@@ -64,12 +67,17 @@ https://edmundsparrow.github.io/driftgate/
 
 ## What it shows
 
-- `demo.html`: **Gate** open/closed changes the bounds passed into
-  `driftGate()`. **Drift** = dog position − gate position. Approaching a
-  closed gate goes `ok` → `resist` → `jam`; the same move against an open
-  gate reads `ok` well past where it used to jam. **Make Uncertain**
-  demonstrates the one thing `driftGate()` deliberately doesn't do —
-  escalate to a human — which lives at the application layer instead.
+- `demo.html`: Three walls (west, north, south) are `jam`-only — no resist
+  zone, no warning, straight refusal. The east wall is the **gate**:
+  closed, it goes `ok` → `resist` → `jam` on approach, from either
+  direction (re-entering from outside re-triggers the same check as
+  leaving); open, the identical move reads `ok` well past where it used to
+  jam. **Make Uncertain** demonstrates the one thing `driftGate()`
+  deliberately doesn't do — escalate to a human — which lives at the
+  application layer instead. On touch devices you can drag to orbit the
+  camera; the on-screen controls rotate to match so they keep pointing
+  where they actually move. On a mouse-only desktop the camera stays fixed
+  and the controls never need to move.
 - `index.html`: **Value** and **Reference** are independently adjustable;
   **Drift** = value − reference, computed by `driftGate()`, not the UI. The
   zone bands move with the reference — the tolerance window travels, it
