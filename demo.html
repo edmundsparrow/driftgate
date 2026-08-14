@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>I Don't Teach the Dog Ethics. I Build the Gate.</title>
+<style>
+  :root{
+    --navy:#1b4d6e;
+    --navy-deep:#123249;
+    --bg:#f0f5fb;
+    --panel:#ffffff;
+    --line:#d7e3ee;
+    --ok:#2e8b57;
+    --deny:#c0392b;
+    --amber:#c78a1f;
+    --ink:#1c2b36;
+    --mono: 'DM Mono', 'SFMono-Regular', Menlo, Consolas, monospace;
+    --sans: 'DM Sans', -apple-system, 'Segoe UI', sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:var(--sans);}
+  body{padding:20px 14px 60px;max-width:760px;margin:0 auto;}
+
+  header{margin-bottom:18px;}
+  h1{font-size:1.4rem;line-height:1.3;margin:0 0 6px;color:var(--navy-deep);}
+  .kicker{font-family:var(--mono);font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--navy);opacity:.75;margin-bottom:8px;}
+  p.lede{font-size:.92rem;line-height:1.5;color:#3a4b57;max-width:60ch;}
+
+  .stage{
+    position:relative;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:10px;
+    box-shadow:0 1px 3px rgba(27,77,110,.08);
+    margin-bottom:14px;
+  }
+  svg{width:100%;height:auto;display:block;border-radius:6px;}
+
+  .status-bar{
+    display:grid;
+    grid-template-columns:repeat(2,1fr);
+    gap:8px;
+    margin-bottom:14px;
+  }
+  @media(min-width:560px){ .status-bar{grid-template-columns:repeat(5,1fr);} }
+  .stat{
+    background:var(--panel);border:1px solid var(--line);border-radius:8px;
+    padding:8px 10px;
+  }
+  .stat .label{font-family:var(--mono);font-size:.62rem;letter-spacing:.06em;text-transform:uppercase;color:#7f93a3;}
+  .stat .value{font-family:var(--mono);font-size:.85rem;font-weight:700;margin-top:2px;}
+  .v-allow{color:var(--ok)} .v-deny{color:var(--deny)} .v-wait{color:var(--amber)} .v-neutral{color:var(--navy)} .v-resist{color:var(--amber)}
+
+  .controls{
+    display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;
+  }
+  button{
+    font-family:var(--sans);font-size:.85rem;font-weight:600;
+    border:1px solid var(--line);background:var(--panel);color:var(--navy-deep);
+    padding:9px 14px;border-radius:8px;cursor:pointer;
+    transition:transform .08s ease, box-shadow .12s ease;
+  }
+  button:hover{box-shadow:0 2px 6px rgba(27,77,110,.15);}
+  button:active{transform:translateY(1px);}
+  button:disabled{opacity:.4;cursor:not-allowed;box-shadow:none;}
+  button.primary{background:var(--navy);color:#fff;border-color:var(--navy);}
+  button.danger{background:var(--deny);color:#fff;border-color:var(--deny);}
+  button.ghost{background:transparent;}
+  button.ask{
+    background:var(--amber);color:#2a1e05;border-color:var(--amber);
+    animation:none;
+  }
+  button.ask.pulse{ animation: askPulse 1.4s infinite; }
+  @keyframes askPulse{
+    0%{ box-shadow:0 0 0 0 rgba(199,138,31,.55);}
+    70%{ box-shadow:0 0 0 10px rgba(199,138,31,0);}
+    100%{ box-shadow:0 0 0 0 rgba(199,138,31,0);}
+  }
+
+  .log{
+    background:var(--navy-deep);color:#cfe3f2;
+    font-family:var(--mono);font-size:.74rem;line-height:1.55;
+    border-radius:8px;padding:12px 14px;height:150px;overflow-y:auto;
+  }
+  .log .row{white-space:pre-wrap;}
+  .log .t{color:#7fa8c4;}
+  .log .tag-allow{color:#7bd39b;}
+  .log .tag-resist{color:#f2c568;}
+  .log .tag-deny{color:#ff8f7d;}
+  .log .tag-esc{color:#f2c568;}
+
+  .lecture{margin-top:26px;padding-top:18px;border-top:1px solid var(--line);}
+  .lecture h2{font-size:1.05rem;color:var(--navy-deep);margin:0 0 8px;}
+  .lecture p{font-size:.88rem;line-height:1.6;color:#3a4b57;margin:0 0 10px;}
+  .lecture .chain{
+    font-family:var(--mono);font-size:.78rem;color:var(--navy);
+    background:#fff;border:1px solid var(--line);border-radius:8px;
+    padding:10px 12px;display:inline-block;margin:6px 0;
+  }
+  .lecture blockquote{
+    margin:14px 0;padding:10px 14px;border-left:3px solid var(--navy);
+    font-style:italic;color:var(--navy-deep);background:#fff;border-radius:0 6px 6px 0;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="kicker">weekend challenge — dog days edition</div>
+  <h1>I Don't Teach the Dog Ethics. I Build the Gate.</h1>
+  <p class="lede">The dog doesn't need to understand the fence. The fence doesn't need to understand the dog. Underneath, <code>driftGate()</code> is doing the classifying: it measures how far the dog's position has drifted from the gate and reports <strong>ok</strong>, <strong>resist</strong>, or <strong>jam</strong> — the system decides what happens next. Try it below.</p>
+</header>
+
+<div class="stage">
+  <svg id="scene" viewBox="0 0 700 340" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <pattern id="hatch" width="10" height="10" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+        <line x1="0" y1="0" x2="0" y2="10" stroke="#b9c8d4" stroke-width="2"/>
+      </pattern>
+    </defs>
+
+    <!-- unauthorized zone (outside fence) -->
+    <rect id="outside" x="520" y="20" width="160" height="300" fill="url(#hatch)" opacity="0.6"/>
+    <text x="600" y="40" text-anchor="middle" font-family="DM Mono, monospace" font-size="10" fill="#7f93a3">UNAUTHORIZED</text>
+
+    <!-- authorized yard -->
+    <rect id="yard" x="20" y="20" width="500" height="300" fill="#e7f2ea" stroke="#bcdcc6" stroke-width="1"/>
+    <text x="270" y="40" text-anchor="middle" font-family="DM Mono, monospace" font-size="10" fill="#5c8f6d">AUTHORIZED</text>
+
+    <!-- fence posts -->
+    <g id="fenceGroup" stroke="#8a9aa8" stroke-width="4">
+      <line x1="520" y1="20" x2="520" y2="130"/>
+      <line x1="520" y1="230" x2="520" y2="320"/>
+    </g>
+
+    <!-- gate (the transition mechanism) -->
+    <g id="gate">
+      <rect id="gateBar" x="513" y="130" width="14" height="100" fill="var(--deny)" rx="3"/>
+      <text id="gateLabel" x="520" y="184" text-anchor="middle" font-family="DM Mono, monospace" font-size="9" fill="#fff" transform="rotate(90 520 184)">CLOSED</text>
+    </g>
+
+    <!-- ground line -->
+    <line x1="20" y1="300" x2="680" y2="300" stroke="#cbd9e2" stroke-width="1"/>
+
+    <!-- ambiguity bubble -->
+    <g id="bubble" opacity="0">
+      <circle id="bubbleCircle" r="16" fill="#fff" stroke="var(--amber)" stroke-width="2"/>
+      <text id="bubbleText" text-anchor="middle" dy="6" font-family="DM Mono, monospace" font-weight="700" font-size="16" fill="#c78a1f">?</text>
+    </g>
+
+    <!-- the dog (the agent) -->
+    <g id="dog">
+      <ellipse cx="0" cy="270" rx="22" ry="13" fill="#c8863f"/>
+      <ellipse cx="17" cy="262" rx="10" ry="9" fill="#c8863f"/>
+      <path d="M22,255 l6,-8 l2,9 z" fill="#c8863f"/>
+      <path d="M8,255 l-4,-9 l-6,6 z" fill="#c8863f"/>
+      <circle cx="21" cy="260" r="1.6" fill="#2a1a0d"/>
+      <path id="tail" d="M-20,265 q-10,-10 -16,-2" stroke="#c8863f" stroke-width="5" fill="none" stroke-linecap="round"/>
+      <line x1="-10" y1="280" x2="-10" y2="292" stroke="#c8863f" stroke-width="5" stroke-linecap="round"/>
+      <line x1="6" y1="281" x2="6" y2="293" stroke="#c8863f" stroke-width="5" stroke-linecap="round"/>
+    </g>
+  </svg>
+</div>
+
+<div class="status-bar">
+  <div class="stat"><div class="label">State</div><div class="value v-neutral" id="statState">OK</div></div>
+  <div class="stat"><div class="label">Drift</div><div class="value v-neutral" id="statDrift">−440</div></div>
+  <div class="stat"><div class="label">Gate</div><div class="value v-deny" id="statGate">CLOSED</div></div>
+  <div class="stat"><div class="label">Authority</div><div class="value v-neutral" id="statAuthority">YARD</div></div>
+  <div class="stat"><div class="label">Last transition</div><div class="value v-neutral" id="statTransition">—</div></div>
+</div>
+
+<div class="controls">
+  <button id="btnLeft">← Move</button>
+  <button id="btnRight">Move →</button>
+  <button id="btnGate" class="primary">Open Gate</button>
+  <button id="btnUncertain">Make Uncertain</button>
+  <button id="btnAsk" class="ask" style="display:none;">Ask Human</button>
+  <button id="btnReset" class="ghost">Reset</button>
+</div>
+
+<div class="log" id="log"></div>
+
+<div class="lecture">
+  <h2>What just happened</h2>
+  <p>The dog never learns a rule about gates. It just keeps attempting to move. Every attempt calls <code>driftGate(dogPosition, gatePosition, bounds)</code> — the same primitive from <a href="./driftGate.js">driftGate.js</a>, unmodified. It measures the signed distance between where the dog is and where the boundary sits, then classifies it as <strong>ok</strong>, <strong>resist</strong>, or <strong>jam</strong>.</p>
+  <div class="chain">drift = position − boundary → driftGate() → ok / resist / jam → enforcement</div>
+  <p>When the gate is closed, the bounds passed into <code>driftGate()</code> put <code>maxHard</code> right at the boundary — so the dog gets a <strong>resist</strong> warning as it nears the gate, then a hard <strong>jam</strong> at the line. Open the gate and nothing about the dog changes — no new reasoning, no new rule learned. Only the bounds object handed to <code>driftGate()</code> changes, and the exact same attempted move now reads <strong>ok</strong> well past where it used to jam. Nothing about the agent changed. The capability boundary did.</p>
+  <p>One thing in this demo is deliberately <em>not</em> part of <code>driftGate()</code>: click <strong>Make Uncertain</strong> and the system escalates instead of guessing. <code>driftGate()</code> only ever returns <code>ok</code>, <code>resist</code>, or <code>jam</code> — it has no concept of "ask a human." That's an application-layer decision built on top of the primitive, which is exactly the point: the gate primitive stays small and dumb, and the surrounding system decides what any given state should trigger.</p>
+  <blockquote>The dog doesn't need to understand the fence. The fence doesn't need to understand the dog.</blockquote>
+</div>
+
+<script src="./driftGate.js"></script>
+<script>
+(function(){
+  // The gate/boundary line, in the same coordinate space as the dog's x position.
+  const GATE_X = 480;
+  const YARD_MIN = -20;
+  const OUTSIDE_MAX = 620;
+  const STEP = 40;
+
+  let x = 40;           // dog x position (svg units, offset applied via transform)
+  let gateOpen = false;
+  let ambiguous = false;
+  let outside = false;
+
+  const dog = document.getElementById('dog');
+  const gateBar = document.getElementById('gateBar');
+  const gateLabel = document.getElementById('gateLabel');
+  const bubble = document.getElementById('bubble');
+  const fenceGroup = document.getElementById('fenceGroup');
+  const logEl = document.getElementById('log');
+
+  const statState = document.getElementById('statState');
+  const statDrift = document.getElementById('statDrift');
+  const statGate = document.getElementById('statGate');
+  const statTransition = document.getElementById('statTransition');
+  const statAuthority = document.getElementById('statAuthority');
+
+  const btnLeft = document.getElementById('btnLeft');
+  const btnRight = document.getElementById('btnRight');
+  const btnGate = document.getElementById('btnGate');
+  const btnUncertain = document.getElementById('btnUncertain');
+  const btnAsk = document.getElementById('btnAsk');
+  const btnReset = document.getElementById('btnReset');
+
+  // The bounds handed to driftGate() change when the gate opens or closes.
+  // driftGate() itself never changes — only the boundary configuration does.
+  function currentBounds(){
+    return gateOpen
+      ? { minHard: YARD_MIN - GATE_X - 20, minSoft: -460, maxSoft: 100, maxHard: OUTSIDE_MAX - GATE_X }
+      : { minHard: YARD_MIN - GATE_X - 20, minSoft: -460, maxSoft: -40, maxHard: 0 };
+  }
+
+  function timeStr(){
+    const d = new Date();
+    return d.toTimeString().slice(0,8);
+  }
+
+  function log(tag, lines){
+    const row = document.createElement('div');
+    row.className = 'row';
+    const cls = tag === 'OK' ? 'tag-allow' : tag === 'RESIST' ? 'tag-resist' : tag === 'JAM' ? 'tag-deny' : 'tag-esc';
+    row.innerHTML = `<span class="t">${timeStr()}</span>  <span class="${cls}">${tag}</span>  ${lines}`;
+    logEl.appendChild(row);
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  function render(){
+    dog.setAttribute('transform', `translate(${x},0)`);
+    bubble.setAttribute('transform', `translate(${x+2},235)`);
+
+    gateBar.setAttribute('fill', gateOpen ? '#2e8b57' : '#c0392b');
+    gateLabel.textContent = gateOpen ? 'OPEN' : 'CLOSED';
+    statGate.textContent = gateOpen ? 'OPEN' : 'CLOSED';
+    statGate.className = 'value ' + (gateOpen ? 'v-allow' : 'v-deny');
+
+    btnGate.textContent = gateOpen ? 'Close Gate' : 'Open Gate';
+    btnGate.className = gateOpen ? 'danger' : 'primary';
+
+    statAuthority.textContent = outside ? 'EXTENDED' : 'YARD';
+
+    const result = driftGate(x, GATE_X, currentBounds());
+    statDrift.textContent = (result.drift > 0 ? '+' : '') + result.drift;
+    if(!ambiguous){
+      statState.textContent = result.state.toUpperCase() + (result.side ? ' / ' + result.side.toUpperCase() : '');
+      statState.className = 'value ' + (result.state === 'ok' ? 'v-allow' : result.state === 'resist' ? 'v-resist' : 'v-deny');
+    }
+
+    if(ambiguous){
+      bubble.setAttribute('opacity','1');
+      statState.textContent = 'AMBIGUOUS';
+      statState.className = 'value v-wait';
+      btnAsk.style.display = 'inline-block';
+      btnAsk.classList.add('pulse');
+    } else {
+      bubble.setAttribute('opacity','0');
+      btnAsk.style.display = 'none';
+      btnAsk.classList.remove('pulse');
+    }
+
+    btnLeft.disabled = ambiguous;
+    btnRight.disabled = ambiguous;
+  }
+
+  function bump(){
+    fenceGroup.setAttribute('stroke', '#c0392b');
+    fenceGroup.setAttribute('stroke-width', '6');
+    setTimeout(()=>{
+      fenceGroup.setAttribute('stroke', '#8a9aa8');
+      fenceGroup.setAttribute('stroke-width', '4');
+    }, 220);
+
+    dog.style.transition = 'transform .08s ease';
+    dog.setAttribute('transform', `translate(${x-8},0)`);
+    setTimeout(()=>{
+      dog.setAttribute('transform', `translate(${x},0)`);
+    }, 90);
+  }
+
+  function attemptMove(dir){
+    if(ambiguous) return;
+
+    const target = x + dir*STEP;
+    const clampedTarget = Math.max(YARD_MIN, Math.min(OUTSIDE_MAX, target));
+    const result = driftGate(clampedTarget, GATE_X, currentBounds());
+
+    if(result.state === 'jam'){
+      bump();
+      log('JAM', `AGENT → MOVE(${dir>0?'right':'left'})  |  driftGate(${clampedTarget}, ${GATE_X}, bounds) → { drift:${result.drift}, state:'jam', side:'${result.side}' }  |  reason: boundary refuses at current authority`);
+      statTransition.textContent = 'JAM';
+      statTransition.className = 'value v-deny';
+      render();
+      return;
+    }
+
+    x = clampedTarget;
+    outside = x > GATE_X;
+
+    if(result.state === 'resist'){
+      log('RESIST', `AGENT → MOVE(${dir>0?'right':'left'})  |  driftGate(${x}, ${GATE_X}, bounds) → { drift:${result.drift}, state:'resist', side:'${result.side}' }  |  reason: nearing boundary, still permitted`);
+      statTransition.textContent = 'RESIST';
+      statTransition.className = 'value v-resist';
+    } else {
+      log('OK', `AGENT → MOVE(${dir>0?'right':'left'})  |  driftGate(${x}, ${GATE_X}, bounds) → { drift:${result.drift}, state:'ok' }  |  reason: within bounds`);
+      statTransition.textContent = 'OK';
+      statTransition.className = 'value v-allow';
+    }
+
+    render();
+  }
+
+  btnLeft.addEventListener('click', ()=>attemptMove(-1));
+  btnRight.addEventListener('click', ()=>attemptMove(1));
+
+  btnGate.addEventListener('click', ()=>{
+    gateOpen = !gateOpen;
+    log(gateOpen ? 'OK' : 'JAM', `SYSTEM → GATE  |  bounds changed, maxHard now ${currentBounds().maxHard}  |  reason: human-authorized change to boundary — driftGate() itself did not change`);
+    statTransition.textContent = gateOpen ? 'GATE OPENED' : 'GATE CLOSED';
+    statTransition.className = 'value ' + (gateOpen ? 'v-allow' : 'v-deny');
+    render();
+  });
+
+  btnUncertain.addEventListener('click', ()=>{
+    if(ambiguous) return;
+    ambiguous = true;
+    log('ESCALATE', `AGENT → ENCOUNTERED UNMAPPED STATE  |  driftGate() has no vocabulary for this  |  TRANSITION → ESCALATE  |  reason: application layer, not the primitive, decides to ask a human`);
+    statTransition.textContent = 'ESCALATE';
+    statTransition.className = 'value v-wait';
+    render();
+  });
+
+  btnAsk.addEventListener('click', ()=>{
+    ambiguous = false;
+    log('OK', `HUMAN → INPUT RECEIVED  |  TRANSITION → RESUME  |  reason: authority clarified by human`);
+    statTransition.textContent = 'RESUMED';
+    statTransition.className = 'value v-allow';
+    render();
+  });
+
+  btnReset.addEventListener('click', ()=>{
+    x = 40; gateOpen = false; ambiguous = false; outside = false;
+    logEl.innerHTML = '';
+    log('OK', `SYSTEM → RESET  |  TRANSITION → INITIAL STATE`);
+    statTransition.textContent = '—';
+    statTransition.className = 'value v-neutral';
+    render();
+  });
+
+  document.addEventListener('keydown', (e)=>{
+    if(e.key === 'ArrowLeft') attemptMove(-1);
+    if(e.key === 'ArrowRight') attemptMove(1);
+  });
+
+  log('OK', `SYSTEM → BOOT  |  driftGate(${x}, ${GATE_X}, bounds) → { state:'ok' }  |  GATE → CLOSED`);
+  render();
+})();
+</script>
+
+</body>
+</html>
