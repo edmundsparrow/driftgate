@@ -16,19 +16,27 @@ function driftGate(value, reference, {
 }) {
   const drift = value - reference;
 
-  if (drift <= minHard) {
+  // Same guard as capacityGate.js: Infinity/-Infinity is the documented
+  // way to disable a side (e.g. the 'projected' quorum sensor sets
+  // maxSoft/maxHard: Infinity to mean "never trigger on the over side").
+  // Without this, drift === Infinity too makes `Infinity >= Infinity`
+  // true in JS and misfires jam even though the check was meant to be
+  // off. Guard on the threshold being the disabling sentinel, not on
+  // the value of `drift` -- a finite threshold must still correctly
+  // jam against an Infinity drift.
+  if (minHard !== -Infinity && drift <= minHard) {
     return { drift, state: 'jam', side: 'under' };
   }
 
-  if (drift <= minSoft) {
+  if (minSoft !== -Infinity && drift <= minSoft) {
     return { drift, state: 'resist', side: 'under' };
   }
 
-  if (drift >= maxHard) {
+  if (maxHard !== Infinity && drift >= maxHard) {
     return { drift, state: 'jam', side: 'over' };
   }
 
-  if (drift >= maxSoft) {
+  if (maxSoft !== Infinity && drift >= maxSoft) {
     return { drift, state: 'resist', side: 'over' };
   }
 
